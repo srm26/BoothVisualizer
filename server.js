@@ -440,6 +440,23 @@ nav::after {
 .popup-header-title { font-size: 10px; font-weight: 700; color: var(--orange-dim); letter-spacing: 2px; text-transform: uppercase; }
 .popup-close-btn { background: none; border: none; color: rgba(255,107,0,.4); cursor: pointer; font-size: 17px; line-height: 1; padding: 0 2px; }
 .popup-close-btn:hover { color: var(--orange); }
+
+@media print {
+  body { background: #fff !important; }
+  * { color: #000 !important; background: transparent !important; box-shadow: none !important; border-color: #ccc !important; }
+  .app-nav, .left-panel, .results-header, .tab-bar, .render-card-header .flux-badge,
+  .rerender-bar, .render-idle-row, #render-progress, .render-actions-row,
+  #render-error, #chat-fab, #chat-popup, .cta-hint { display: none !important; }
+  .app-body { display: block !important; }
+  .right-panel, #results-area, #results-panel { display: block !important; overflow: visible !important; height: auto !important; }
+  .render-section { page-break-inside: avoid; }
+  #booth-render { display: block !important; max-width: 100% !important; border: 1px solid #ddd; margin-bottom: 12px; }
+  .tab-pane { display: block !important; height: auto !important; overflow: visible !important; page-break-inside: avoid; margin-bottom: 16px; }
+  .tab-content { overflow: visible !important; height: auto !important; }
+  .order-item { border-bottom: 1px solid #eee; padding: 4px 0; }
+  .cta-btn { display: none !important; }
+  #print-header { display: block !important; }
+}
 .chat-input-row { display: flex; gap: 6px; padding: 8px 12px; border-top: 1px solid rgba(255,107,0,.07); }
 .chat-input { flex: 1; padding: 6px 10px; border: 1px solid rgba(255,107,0,.16); border-radius: var(--r); font-size: 11px; font-family: inherit; outline: none; color: var(--text); background: rgba(0,0,0,.4); }
 .chat-input:focus { border-color: rgba(255,107,0,.4); }
@@ -623,6 +640,13 @@ footer strong { color: rgba(255,107,0,.35); font-weight: 600; }
       <!-- Results -->
       <div id="results-panel" style="display:none;flex-direction:column">
 
+        <!-- Print-only header -->
+        <div id="print-header" style="display:none;padding:0 0 12px;border-bottom:2px solid #114261;margin-bottom:12px">
+          <img src="/logo.webp" alt="GES" style="height:36px;margin-bottom:6px">
+          <div style="font-size:18px;font-weight:700;color:#114261">Booth Concept Proposal</div>
+          <div id="print-subtitle" style="font-size:11px;color:#555;margin-top:2px"></div>
+        </div>
+
         <div class="results-header">
           <div>
             <h2 class="results-title">Your Booth Concept</h2>
@@ -630,6 +654,8 @@ footer strong { color: rgba(255,107,0,.35); font-weight: 600; }
           </div>
           <div class="results-actions">
             <button class="btn-outline" id="reset-btn">Start Over</button>
+            <button class="btn-outline" onclick="shareBoothLink()" title="Copy shareable link">&#128279; Share</button>
+            <button class="btn-outline" onclick="printBooth()" title="Download / Print PDF">&#128196; PDF</button>
             <button class="btn-primary" onclick="window.open('https://ordering.ges.com','_blank')">Submit Order &#8594;</button>
           </div>
         </div>
@@ -1035,6 +1061,60 @@ function toggleChatPopup() {
     h.scrollTop = h.scrollHeight;
   }
 }
+
+// ─── Share Link ───────────────────────────────────────────────────────────────
+function shareBoothLink() {
+  var data = {
+    w:   document.getElementById('booth-width').value,
+    d:   document.getElementById('booth-depth').value,
+    sn:  document.getElementById('show-name').value,
+    bt:  document.getElementById('booth-type').value,
+    bn:  document.getElementById('booth-number').value,
+    ind: document.getElementById('industry').value,
+    bc:  document.getElementById('brand-colors').value,
+    vis: document.getElementById('vision').value,
+    vib: (document.querySelector('.vibe-chip.active') || {}).dataset && document.querySelector('.vibe-chip.active').dataset.val || ''
+  };
+  var encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+  var url = location.origin + location.pathname + '#d=' + encoded;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(function() { showToast('Link copied to clipboard!', 'ok'); });
+  } else {
+    prompt('Copy this link:', url);
+  }
+}
+
+// ─── Print / PDF ──────────────────────────────────────────────────────────────
+function printBooth() {
+  var subtitle = document.getElementById('results-subtitle').textContent;
+  document.getElementById('print-subtitle').textContent = subtitle;
+  window.print();
+}
+
+// ─── Restore from share link ──────────────────────────────────────────────────
+(function restoreFromHash() {
+  var hash = location.hash;
+  if (!hash || !hash.startsWith('#d=')) return;
+  try {
+    var data = JSON.parse(decodeURIComponent(escape(atob(hash.slice(3)))));
+    if (data.w)   document.getElementById('booth-width').value   = data.w;
+    if (data.d)   document.getElementById('booth-depth').value   = data.d;
+    if (data.sn)  document.getElementById('show-name').value     = data.sn;
+    if (data.bt)  document.getElementById('booth-type').value    = data.bt;
+    if (data.bn)  document.getElementById('booth-number').value  = data.bn;
+    if (data.ind) document.getElementById('industry').value      = data.ind;
+    if (data.bc)  document.getElementById('brand-colors').value  = data.bc;
+    if (data.vis) document.getElementById('vision').value        = data.vis;
+    if (data.vib) {
+      document.querySelectorAll('.vibe-chip').forEach(function(c) {
+        c.classList.toggle('active', c.dataset.val === data.vib);
+      });
+    }
+    var vis = document.getElementById('vision');
+    document.getElementById('gen-btn').disabled = !vis || vis.value.trim().length < 10;
+    showToast('Booth configuration restored from shared link', 'ok');
+  } catch(e) {}
+})();
 
 // ─── Chat Refinement ──────────────────────────────────────────────────────────
 async function sendRefinement() {
