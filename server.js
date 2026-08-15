@@ -1166,7 +1166,10 @@ async function sendRefinement() {
       document.getElementById('booth-type').value || '',
       true
     );
+    // Reinforce user's specific request in the image prompt so Stability AI renders the items
+    if (imagePrompt) imagePrompt = imagePrompt + '. Specifically include: ' + msg;
     document.getElementById('rerender-bar').style.display = 'flex';
+    appendChatBubble('assistant', 'Click » Re-render « above to see the updated image.');
   } catch(e) {
     thinkingEl.remove();
     appendChatBubble('assistant', 'Error: ' + e.message.slice(0, 150));
