@@ -783,6 +783,24 @@ var imageNegativePrompt    = '';
 var currentRenderDataUrl   = null;
 var conversationHistory    = [];
 
+function buildNegativePrompt(orderItems) {
+  var furniture = (orderItems || []).filter(function(i){ return i.category === 'Furniture'; });
+  var parts = [];
+  furniture.forEach(function(i) {
+    var qty = parseInt(i.qty) || 1;
+    var n   = i.name.toLowerCase();
+    for (var q = qty + 1; q <= qty + 4; q++) parts.push(q + ' ' + n + 's');
+    parts.push('extra ' + n);
+  });
+  return parts.join(', ') + (parts.length ? ', overcrowded, too much furniture, cluttered' : '');
+}
+
+function buildFurniturePrefix(orderItems) {
+  var furniture = (orderItems || []).filter(function(i){ return i.category === 'Furniture'; });
+  var spec = furniture.map(function(i){ return i.qty + ' ' + i.name.toLowerCase(); }).join(', ');
+  return spec ? 'EXACT FURNITURE ONLY — ' + spec + '. No additional chairs or tables. ' : '';
+}
+
 
 // ─── Reference Image Upload ───────────────────────────────────────────────────
 var imgZone = document.getElementById('img-zone');
@@ -958,18 +976,9 @@ async function generate() {
   }
 
   hideLoading();
-  var furnitureItems = (concept.order_items || []).filter(function(i){ return i.category === 'Furniture'; });
-  var furnitureSpec  = furnitureItems.map(function(i){ return i.qty + ' ' + i.name.toLowerCase(); }).join(', ');
-  var negParts = [];
-  furnitureItems.forEach(function(i) {
-    var qty = parseInt(i.qty) || 1;
-    var n = i.name.toLowerCase();
-    for (var q = qty + 1; q <= qty + 4; q++) negParts.push(q + ' ' + n + 's');
-    negParts.push('extra ' + n);
-  });
-  imageNegativePrompt = negParts.join(', ') + (negParts.length ? ', overcrowded, too much furniture, cluttered' : '');
+  imageNegativePrompt = buildNegativePrompt(concept.order_items);
   imagePrompt = buildImagePromptPrefix(w, d, boothType, brandColors) +
-    (furnitureSpec ? 'EXACT FURNITURE ONLY — ' + furnitureSpec + '. No additional chairs or tables. ' : '') +
+    buildFurniturePrefix(concept.order_items) +
     (concept.image_prompt || '');
   renderConcept(concept, showName, w, d, boothType, false);
 
@@ -1166,8 +1175,9 @@ async function sendRefinement() {
       document.getElementById('booth-type').value || '',
       true
     );
-    // Reinforce user's specific request in the image prompt so Stability AI renders the items
-    if (imagePrompt) imagePrompt = imagePrompt + '. Specifically include: ' + msg;
+    // Rebuild negative prompt and prepend exact furniture counts from updated order list
+    imageNegativePrompt = buildNegativePrompt(concept.order_items);
+    if (imagePrompt) imagePrompt = buildFurniturePrefix(concept.order_items) + imagePrompt + '. Specifically include: ' + msg;
     document.getElementById('rerender-bar').style.display = 'flex';
     appendChatBubble('assistant', 'Click » Re-render « above to see the updated image.');
   } catch(e) {
