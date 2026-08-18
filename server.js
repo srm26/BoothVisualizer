@@ -5,7 +5,6 @@
  *
  * Azure App Service: set PORT env var; app binds to all interfaces automatically.
  */
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 const http  = require('http');
 const https = require('https');
 const fs    = require('fs');
@@ -22,8 +21,16 @@ try {
 } catch(e) {}
 
 const PORT = process.env.PORT || 3000;
-const APP_PASSWORD = process.env.APP_PASSWORD || 'TradeTech2026';
+const APP_PASSWORD = process.env.APP_PASSWORD;
+if (!APP_PASSWORD) { console.error('FATAL: APP_PASSWORD env var is not set'); process.exit(1); }
 
+// ─── Session store (in-memory, token → expiry ms) ──────────────────────────
+const sessions = new Map();
+function createSession() {
+  const token = require('crypto').randomBytes(32).toString('hex');
+  sessions.set(token, Date.now() + 86400_000);
+  return token;
+}
 function parseCookies(req) {
   const list = {};
   (req.headers.cookie || '').split(';').forEach(pair => {
@@ -32,7 +39,21 @@ function parseCookies(req) {
   });
   return list;
 }
-function isAuthenticated(req) { return parseCookies(req).ges_auth === APP_PASSWORD; }
+function isAuthenticated(req) {
+  const token = parseCookies(req).ges_session;
+  const expiry = sessions.get(token);
+  return expiry && expiry > Date.now();
+}
+
+// ─── Rate limiter — max 20 API requests per IP per minute ──────────────────
+const rateLimits = new Map();
+function isRateLimited(ip) {
+  const now = Date.now();
+  let entry = rateLimits.get(ip);
+  if (!entry || now - entry.ts > 60_000) { entry = { ts: now, count: 0 }; rateLimits.set(ip, entry); }
+  entry.count++;
+  return entry.count > 20;
+}
 
 // ─── HTTPS helpers ─────────────────────────────────────────────────────────────
 
@@ -93,6 +114,9 @@ function httpsGet(hostname, urlPath, headers, redirects) {
 
 function stabilityPost(apiKey, prompt, negativePrompt) {
   return new Promise((resolve, reject) => {
+    const sanitize = s => s.replace(/\r\n|\r|\n/g, ' ');
+    prompt = sanitize(prompt);
+    if (negativePrompt) negativePrompt = sanitize(negativePrompt);
     const boundary = 'GESBoundary' + Date.now().toString(16);
     const parts = [
       '--' + boundary + '\r\nContent-Disposition: form-data; name="prompt"\r\n\r\n' + prompt + '\r\n',
@@ -129,23 +153,10 @@ function stabilityPost(apiKey, prompt, negativePrompt) {
   });
 }
 
-function httpsGetBinary(imageUrl) {
-  return new Promise((resolve, reject) => {
-    const u   = new URL(imageUrl);
-    const req = https.request({
-      hostname: u.hostname, path: u.pathname + u.search, method: 'GET'
-    }, res => {
-      const c = [];
-      res.on('data', d => c.push(d));
-      res.on('end', () => resolve({ data: Buffer.concat(c), contentType: res.headers['content-type'] || 'image/png' }));
-    });
-    req.on('error', reject);
-    req.end();
-  });
-}
 
+const ALLOWED_ORIGINS = new Set(['https://hackathon-dv.ges.com', 'http://localhost:3000', 'http://localhost:3001']);
 function send(res, status, obj) {
-  res.writeHead(status, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+  res.writeHead(status, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify(obj));
 }
 
@@ -1451,9 +1462,13 @@ async function auth() {
 
 // ─── SERVER ────────────────────────────────────────────────────────────────────
 const server = http.createServer(async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  const origin = req.headers.origin || '';
+  if (ALLOWED_ORIGINS.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Vary', 'Origin');
+  }
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
   // ── Static: GES logo (no auth needed) ───────────────────────────────────────
@@ -1473,9 +1488,14 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // ── Parse POST body ──────────────────────────────────────────────────────────
+  // ── Parse POST body (10 MB limit) ───────────────────────────────────────────
   const chunks = [];
-  await new Promise(r => { req.on('data', c => chunks.push(c)); req.on('end', r); });
+  let bodySize = 0;
+  const bodyOk = await new Promise(r => {
+    req.on('data', c => { bodySize += c.length; if (bodySize > 10_000_000) { req.destroy(); r(false); } else chunks.push(c); });
+    req.on('end', () => r(true));
+  });
+  if (!bodyOk) { res.writeHead(413); res.end('Payload too large'); return; }
   let body;
   try { body = JSON.parse(Buffer.concat(chunks).toString()); }
   catch(e) { send(res, 400, { error: 'Invalid JSON body' }); return; }
@@ -1483,9 +1503,10 @@ const server = http.createServer(async (req, res) => {
   // ── Login ────────────────────────────────────────────────────────────────────
   if (req.url === '/api/login') {
     if (body.password === APP_PASSWORD) {
+      const token = createSession();
       res.writeHead(200, {
         'Content-Type': 'application/json',
-        'Set-Cookie': 'ges_auth=' + encodeURIComponent(APP_PASSWORD) + '; Path=/; HttpOnly; Max-Age=86400'
+        'Set-Cookie': 'ges_session=' + token + '; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=86400'
       });
       res.end(JSON.stringify({ ok: true }));
     } else {
@@ -1496,6 +1517,10 @@ const server = http.createServer(async (req, res) => {
 
   // ── All other API routes require auth ────────────────────────────────────────
   if (!isAuthenticated(req)) { send(res, 401, { error: 'Unauthorized' }); return; }
+
+  // ── Rate limit ───────────────────────────────────────────────────────────────
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+  if (isRateLimited(ip)) { send(res, 429, { error: 'Too many requests — please wait a moment' }); return; }
 
   // ── Claude proxy ─────────────────────────────────────────────────────────────
   if (req.url === '/api/claude') {
