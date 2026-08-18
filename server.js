@@ -167,13 +167,13 @@ const HTML = `<!DOCTYPE html>
   --orange-dim: rgba(255,107,0,.55);
   --gold:       #FFD000;
   /* Surfaces — GES navy-tinted dark */
-  --bg:         #05101a;
-  --surface:    #0a1c2e;
-  --surface2:   #0d2235;
-  --border:     rgba(255,107,0,.14);
-  --border-ges: rgba(17,66,97,.6);
-  --text:       #cfe2f3;
-  --text-dim:   rgba(150,190,225,.42);
+  --bg:         #162e45;
+  --surface:    #1e3a55;
+  --surface2:   #224260;
+  --border:     rgba(255,107,0,.28);
+  --border-ges: rgba(40,110,165,.75);
+  --text:       #e8f4fc;
+  --text-dim:   rgba(170,210,240,.80);
   --light-text: #ffffff;
   --primary:    #FF6B00;
   --secondary:  #0a1c2e;
@@ -204,7 +204,7 @@ body::after {
 
 /* NAV */
 nav {
-  background: linear-gradient(90deg, var(--ges-navy) 0%, #0e3350 50%, var(--ges-navy) 100%);
+  background: linear-gradient(90deg, var(--ges-navy) 0%, #1e5280 50%, var(--ges-navy) 100%);
   border-bottom: 1px solid rgba(255,107,0,.22);
   height: 48px; padding: 0 20px;
   display: flex; align-items: center; justify-content: space-between;
@@ -232,28 +232,28 @@ nav::after {
 .app-body { display: grid; grid-template-columns: 290px 1fr; flex: 1; min-height: 0; overflow: hidden; position: relative; z-index: 1; }
 
 /* LEFT PANEL */
-.left-panel { background: linear-gradient(180deg, #081826 0%, #071422 100%); border-right: 1px solid rgba(17,66,97,.5); display: flex; flex-direction: column; overflow-y: auto; }
-.form-section { padding: 8px 12px; border-bottom: 1px solid rgba(17,66,97,.35); }
+.left-panel { background: linear-gradient(180deg, #1a3450 0%, #172f48 100%); border-right: 1px solid rgba(40,110,165,.6); display: flex; flex-direction: column; overflow-y: auto; }
+.form-section { padding: 8px 12px; border-bottom: 1px solid rgba(30,90,140,.4); }
 .section-label {
   font-size: 8px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
-  color: rgba(168,195,220,.55); margin-bottom: 5px;
+  color: rgba(180,215,240,.88); margin-bottom: 5px;
   display: flex; align-items: center; gap: 5px;
 }
 .section-label::before { content: '▶'; font-size: 6px; color: var(--orange); opacity: .6; }
 .field { display: flex; flex-direction: column; gap: 2px; margin-bottom: 5px; }
 .field:last-child { margin-bottom: 0; }
-.field label { font-size: 10px; font-weight: 600; color: rgba(160,195,230,.55); }
+.field label { font-size: 10px; font-weight: 600; color: rgba(185,218,245,.90); }
 .field input, .field select, .field textarea {
   width: 100%; padding: 5px 8px;
   border: 1px solid rgba(255,107,0,.16); border-radius: var(--r);
   font-size: 11px; font-family: inherit; color: var(--text);
-  background: rgba(0,0,0,.45); outline: none; transition: border-color .2s, box-shadow .2s;
+  background: rgba(0,0,0,.28); outline: none; transition: border-color .2s, box-shadow .2s;
 }
 .field input:focus, .field select:focus, .field textarea:focus {
   border-color: rgba(255,107,0,.5); box-shadow: 0 0 10px rgba(255,107,0,.08);
 }
-.field select option { background: #0c1520; color: var(--text); }
-.field input::placeholder, .field textarea::placeholder { color: rgba(100,140,180,.28); }
+.field select option { background: #102234; color: var(--text); }
+.field input::placeholder, .field textarea::placeholder { color: rgba(120,165,205,.45); }
 .field textarea { resize: vertical; line-height: 1.5; min-height: 65px; }
 .two-col-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 5px; }
 .two-col-fields .field { margin-bottom: 0; }
@@ -262,7 +262,7 @@ nav::after {
 .chip-group { display: flex; flex-wrap: wrap; gap: 4px; }
 .chip {
   padding: 3px 9px; border: 1px solid rgba(255,107,0,.2); border-radius: 2px;
-  font-size: 10px; font-weight: 500; color: rgba(160,195,230,.4);
+  font-size: 10px; font-weight: 500; color: rgba(180,215,242,.80);
   cursor: pointer; transition: all .15s; background: transparent; user-select: none;
 }
 .chip:hover { border-color: rgba(255,107,0,.5); color: var(--orange); }
@@ -277,8 +277,8 @@ nav::after {
 .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
 .upload-zone:hover, .upload-zone.dragover { border-color: var(--orange); background: rgba(255,107,0,.04); }
 .upload-icon { font-size: 18px; flex-shrink: 0; }
-.upload-title { font-size: 11px; font-weight: 600; color: rgba(190,215,240,.55); }
-.upload-hint  { font-size: 10px; color: rgba(140,175,210,.3); }
+.upload-title { font-size: 11px; font-weight: 600; color: rgba(200,225,248,.78); }
+.upload-hint  { font-size: 10px; color: rgba(150,185,220,.5); }
 .preview-wrap { position: relative; border-radius: var(--r); overflow: hidden; border: 1px solid rgba(255,107,0,.2); }
 .preview-wrap img { width: 100%; max-height: 80px; object-fit: cover; display: block; }
 .preview-remove { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,.75); color: var(--orange); border: 1px solid rgba(255,107,0,.35); border-radius: 50%; width: 20px; height: 20px; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
@@ -298,13 +298,13 @@ nav::after {
 .gen-btn:disabled { opacity: .3; cursor: not-allowed; letter-spacing: 4px; }
 
 /* RIGHT PANEL */
-.right-panel { display: flex; flex-direction: column; overflow: hidden; background: rgba(5,12,20,.7); }
+.right-panel { display: flex; flex-direction: column; overflow: hidden; background: rgba(18,36,56,.7); }
 #results-area { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
 
 /* EMPTY STATE */
 #empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; }
 .empty-card {
-  background: rgba(8,14,22,.95); border: 1px solid rgba(255,107,0,.18); border-radius: 4px;
+  background: rgba(20,36,56,.92); border: 1px solid rgba(255,107,0,.28); border-radius: 4px;
   padding: 30px 36px; max-width: 430px; width: 100%;
   box-shadow: 0 0 50px rgba(255,107,0,.06), 0 4px 30px rgba(0,0,0,.6); position: relative;
 }
@@ -321,13 +321,13 @@ nav::after {
   letter-spacing: 2px; font-family: 'Courier New',monospace; text-transform: uppercase;
 }
 .empty-features { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
-.empty-feature { background: rgba(0,0,0,.3); border: 1px solid rgba(255,107,0,.1); border-radius: 2px; padding: 10px 8px; font-size: 10px; color: var(--text-dim); text-align: center; }
+.empty-feature { background: rgba(0,0,0,.2); border: 1px solid rgba(255,107,0,.18); border-radius: 2px; padding: 10px 8px; font-size: 10px; color: var(--text-dim); text-align: center; }
 .ef-icon { font-size: 18px; margin-bottom: 3px; }
 
 /* RESULTS PANEL */
 #results-panel { flex-direction: column; flex: 1; min-height: 0; }
 .results-header {
-  background: linear-gradient(90deg, #081a2c, #0a2035); border-bottom: 1px solid rgba(255,107,0,.15);
+  background: linear-gradient(90deg, #1a3454, #1e3c60); border-bottom: 1px solid rgba(255,107,0,.28);
   padding: 9px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-shrink: 0;
 }
 .results-title { font-size: 13px; font-weight: 700; color: var(--text); letter-spacing: .3px; }
@@ -656,7 +656,7 @@ footer strong { color: rgba(255,107,0,.35); font-weight: 600; }
             <button class="btn-outline" id="reset-btn">Start Over</button>
             <button class="btn-outline" onclick="shareBoothLink()" title="Copy shareable link">&#128279; Share</button>
             <button class="btn-outline" onclick="printBooth()" title="Download / Print PDF">&#128196; PDF</button>
-            <button class="btn-primary" onclick="window.open('https://ordering.ges.com','_blank')">Submit Order &#8594;</button>
+            <button class="btn-primary" onclick="window.open('https://ges.store/','_blank')">Shop GES Store &#8594;</button>
           </div>
         </div>
 
@@ -716,10 +716,10 @@ footer strong { color: rgba(255,107,0,.35); font-weight: 600; }
 
             <div class="tab-pane" id="tab-summary">
               <div id="summary-rows" style="flex:1"></div>
-              <button class="cta-btn" onclick="window.open('https://ordering.ges.com','_blank')">
-                &#8594;&nbsp; Place Order with GES &nbsp;&#8594;
+              <button class="cta-btn" onclick="window.open('https://ges.store/','_blank')">
+                &#8594;&nbsp; Shop the GES Store &nbsp;&#8594;
               </button>
-              <p class="cta-hint">Continue to GES Ordering to finalize and place your order</p>
+              <p class="cta-hint">Head to GES Store to browse, select, and order your booth items</p>
             </div>
 
           </div>
@@ -751,7 +751,7 @@ footer strong { color: rgba(255,107,0,.35); font-weight: 600; }
 </div><!-- /app-body -->
 
 <footer>
-  <p>&copy; 2025 GES &mdash; Global Experience Specialists. All rights reserved.</p>
+  <p>&copy; 2026 GES &mdash; Global Experience Specialists. All rights reserved.</p>
   <p>Designed by <strong>TradeTech Transformers</strong> &mdash; Modernizing events through AI.</p>
 </footer>
 
