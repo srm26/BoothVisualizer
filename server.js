@@ -1,4 +1,4 @@
-/**
+﻿/**
  * GES Booth Visualizer — v2
  * Run:  node server.js
  * Open: http://localhost:3001
@@ -1035,7 +1035,7 @@ function generateFloorPlanSVG(orderItems, fw, fd, boothType) {
     if (/hanging|overhead sign|suspended sign/.test(n)) return 'hanging_sign';
     if (/backwall|back wall|backdrop|back panel/.test(n)) return 'backwall';
     if (/reception|info counter|registration counter/.test(n)) return 'reception';
-    if (/monitor|screen|tv\b|display/.test(n) && c !== 'signage') return 'monitor';
+    if (/monitor|screen|display| tv |^tv$/.test(n) && c !== 'signage') return 'monitor';
     if (/storage|closet|cabinet/.test(n)) return 'storage';
     if (/sofa|couch|loveseat/.test(n)) return 'sofa';
     if (/high.top|hi.top|cocktail table|bistro/.test(n)) return 'hightop';
@@ -1062,7 +1062,7 @@ function generateFloorPlanSVG(orderItems, fw, fd, boothType) {
   var s = '';
 
   s += '<rect width="' + SVG_W + '" height="' + SVG_H + '" fill="#0a1520" rx="4"/>';
-  s += '<text x="' + (SVG_W / 2) + '" y="17" fill="rgba(255,107,0,0.58)" text-anchor="middle" font-size="9.5" font-family="\'Courier New\',monospace" letter-spacing="3" font-weight="700">2D FLOOR PLAN — TOP VIEW</text>';
+  s += '<text x="' + (SVG_W / 2) + '" y="17" fill="rgba(255,107,0,0.58)" text-anchor="middle" font-size="9.5" font-family="monospace" letter-spacing="3" font-weight="700">2D FLOOR PLAN — TOP VIEW</text>';
 
   s += '<rect x="' + ox + '" y="' + oy + '" width="' + bw + '" height="' + bd + '" fill="#0d1e30" rx="2"/>';
   if (hasFlooring) s += '<rect x="' + ox + '" y="' + oy + '" width="' + bw + '" height="' + bd + '" fill="url(#hatch)"/>';
@@ -1079,8 +1079,8 @@ function generateFloorPlanSVG(orderItems, fw, fd, boothType) {
   var zBackH = bd * 0.28, zFrontH = bd * 0.20;
   s += '<rect x="' + ox + '" y="' + oy + '" width="' + bw + '" height="' + zBackH + '" fill="rgba(15,50,85,0.5)"/>';
   s += '<rect x="' + ox + '" y="' + (oy + bd - zFrontH) + '" width="' + bw + '" height="' + zFrontH + '" fill="rgba(10,45,15,0.4)"/>';
-  s += '<text x="' + (ox + 7) + '" y="' + (oy + 10) + '" fill="rgba(80,140,200,0.35)" font-size="7" font-family="\'Courier New\',monospace" letter-spacing="1.5">BACK WALL ZONE</text>';
-  s += '<text x="' + (ox + 7) + '" y="' + (oy + bd - 5) + '" fill="rgba(60,160,60,0.35)" font-size="7" font-family="\'Courier New\',monospace" letter-spacing="1.5">ENTRANCE ZONE</text>';
+  s += '<text x="' + (ox + 7) + '" y="' + (oy + 10) + '" fill="rgba(80,140,200,0.35)" font-size="7" font-family="monospace" letter-spacing="1.5">BACK WALL ZONE</text>';
+  s += '<text x="' + (ox + 7) + '" y="' + (oy + bd - 5) + '" fill="rgba(60,160,60,0.35)" font-size="7" font-family="monospace" letter-spacing="1.5">ENTRANCE ZONE</text>';
   s += '<line x1="' + (ox + 12) + '" y1="' + (oy + zBackH) + '" x2="' + (ox + bw - 12) + '" y2="' + (oy + zBackH) + '" stroke="rgba(255,107,0,0.08)" stroke-width="1" stroke-dasharray="5,5"/>';
   s += '<line x1="' + (ox + 12) + '" y1="' + (oy + bd - zFrontH) + '" x2="' + (ox + bw - 12) + '" y2="' + (oy + bd - zFrontH) + '" stroke="rgba(255,107,0,0.08)" stroke-width="1" stroke-dasharray="5,5"/>';
 
@@ -1088,13 +1088,13 @@ function generateFloorPlanSVG(orderItems, fw, fd, boothType) {
     var hsW = Math.min(bw * 0.7, f(16)), hsH = Math.min(bd * 0.7, f(16));
     var hx = ox + (bw - hsW) / 2, hy = oy + (bd - hsH) / 2;
     s += '<rect x="' + hx + '" y="' + hy + '" width="' + hsW + '" height="' + hsH + '" fill="rgba(255,200,0,0.025)" stroke="rgba(255,200,0,0.35)" stroke-width="1.5" stroke-dasharray="9,5" rx="4"/>';
-    s += '<text x="' + (hx + hsW / 2) + '" y="' + (hy + 16) + '" fill="rgba(255,210,0,0.45)" text-anchor="middle" font-size="8" font-family="\'Courier New\',monospace" letter-spacing="1">OVERHEAD SIGN</text>';
+    s += '<text x="' + (hx + hsW / 2) + '" y="' + (hy + 16) + '" fill="rgba(255,210,0,0.45)" text-anchor="middle" font-size="8" font-family="monospace" letter-spacing="1">OVERHEAD SIGN</text>';
     s += '<text x="' + (hx + hsW / 2) + '" y="' + (hy + 28) + '" fill="rgba(255,210,0,0.3)" text-anchor="middle" font-size="7.5" font-family="system-ui,sans-serif">' + escHtml((ci.name || '').slice(0, 20)) + '</text>';
   });
 
   byType('backwall').forEach(function() {
     s += '<rect x="' + ox + '" y="' + oy + '" width="' + bw + '" height="' + f(1.0) + '" fill="#12304e" stroke="rgba(60,140,220,0.45)" stroke-width="1"/>';
-    s += '<text x="' + (ox + bw / 2) + '" y="' + (oy + f(0.65)) + '" fill="rgba(100,180,240,0.55)" text-anchor="middle" font-size="8" font-family="\'Courier New\',monospace" letter-spacing="1">BACKWALL GRAPHIC</text>';
+    s += '<text x="' + (ox + bw / 2) + '" y="' + (oy + f(0.65)) + '" fill="rgba(100,180,240,0.55)" text-anchor="middle" font-size="8" font-family="monospace" letter-spacing="1">BACKWALL GRAPHIC</text>';
   });
 
   byType('led_wall').forEach(function() {
@@ -1104,7 +1104,7 @@ function generateFloorPlanSVG(orderItems, fw, fd, boothType) {
     for (var sl = 1; sl < 4; sl++) {
       s += '<line x1="' + lx + '" y1="' + (oy + lh * sl / 4) + '" x2="' + (lx + lw) + '" y2="' + (oy + lh * sl / 4) + '" stroke="rgba(50,100,255,0.18)" stroke-width="0.5"/>';
     }
-    s += '<text x="' + (lx + lw / 2) + '" y="' + (oy + f(0.3)) + '" fill="rgba(90,150,255,0.88)" text-anchor="middle" font-size="8.5" font-family="\'Courier New\',monospace" letter-spacing="1">&#9632; LED VIDEO WALL &#9632;</text>';
+    s += '<text x="' + (lx + lw / 2) + '" y="' + (oy + f(0.3)) + '" fill="rgba(90,150,255,0.88)" text-anchor="middle" font-size="8.5" font-family="monospace" letter-spacing="1">&#9632; LED VIDEO WALL &#9632;</text>';
   });
 
   byType('monitor').forEach(function(ci, idx) {
@@ -1241,7 +1241,7 @@ function generateFloorPlanSVG(orderItems, fw, fd, boothType) {
   byType('electrical').forEach(function(ci, idx) {
     var ex = ox + bw * (0.12 + idx * 0.28), ey = oy + bd - f(0.65);
     s += '<rect x="' + ex + '" y="' + ey + '" width="' + f(0.55) + '" height="' + f(0.55) + '" fill="#0a1e0a" stroke="rgba(50,185,50,0.62)" stroke-width="1"/>';
-    s += '<text x="' + (ex + f(0.27)) + '" y="' + (ey - 4) + '" fill="rgba(50,185,50,0.42)" text-anchor="middle" font-size="7" font-family="\'Courier New\',monospace">&#9889;</text>';
+    s += '<text x="' + (ex + f(0.27)) + '" y="' + (ey - 4) + '" fill="rgba(50,185,50,0.42)" text-anchor="middle" font-size="7" font-family="monospace">&#9889;</text>';
   });
 
   function drawWall(x1, y1, x2, y2, open) {
@@ -1269,23 +1269,23 @@ function generateFloorPlanSVG(orderItems, fw, fd, boothType) {
     s += '<line x1="' + (ox + bw * 0.96) + '" y1="' + (oy + bd / 2) + '" x2="' + (ox + bw * 0.82) + '" y2="' + (oy + bd / 2) + '" stroke="rgba(255,107,0,0.22)" stroke-width="1.5" marker-end="url(#ah)"/>';
   }
 
-  s += '<text x="' + (ox + bw / 2) + '" y="' + (oy + bd + 20) + '" fill="rgba(255,107,0,0.42)" text-anchor="middle" font-size="8.5" font-family="\'Courier New\',monospace" letter-spacing="2">&#9660; AISLE &#9660;</text>';
+  s += '<text x="' + (ox + bw / 2) + '" y="' + (oy + bd + 20) + '" fill="rgba(255,107,0,0.42)" text-anchor="middle" font-size="8.5" font-family="monospace" letter-spacing="2">&#9660; AISLE &#9660;</text>';
 
   var dY2 = oy + bd + 34, dX2 = ox + bw + 30;
   s += '<line x1="' + ox + '" y1="' + dY2 + '" x2="' + (ox + bw) + '" y2="' + dY2 + '" stroke="rgba(255,107,0,0.55)" stroke-width="1"/>';
   s += '<line x1="' + ox + '" y1="' + (dY2 - 4) + '" x2="' + ox + '" y2="' + (dY2 + 4) + '" stroke="rgba(255,107,0,0.55)" stroke-width="1"/>';
   s += '<line x1="' + (ox + bw) + '" y1="' + (dY2 - 4) + '" x2="' + (ox + bw) + '" y2="' + (dY2 + 4) + '" stroke="rgba(255,107,0,0.55)" stroke-width="1"/>';
-  s += '<text x="' + (ox + bw / 2) + '" y="' + (dY2 + 13) + '" fill="rgba(255,107,0,0.72)" text-anchor="middle" font-size="10" font-family="\'Courier New\',monospace">' + fw + '\' — 0"</text>';
+  s += '<text x="' + (ox + bw / 2) + '" y="' + (dY2 + 13) + '" fill="rgba(255,107,0,0.72)" text-anchor="middle" font-size="10" font-family="monospace">' + fw + ' ft</text>';
   s += '<line x1="' + dX2 + '" y1="' + oy + '" x2="' + dX2 + '" y2="' + (oy + bd) + '" stroke="rgba(255,107,0,0.55)" stroke-width="1"/>';
   s += '<line x1="' + (dX2 - 4) + '" y1="' + oy + '" x2="' + (dX2 + 4) + '" y2="' + oy + '" stroke="rgba(255,107,0,0.55)" stroke-width="1"/>';
   s += '<line x1="' + (dX2 - 4) + '" y1="' + (oy + bd) + '" x2="' + (dX2 + 4) + '" y2="' + (oy + bd) + '" stroke="rgba(255,107,0,0.55)" stroke-width="1"/>';
-  s += '<text x="' + (dX2 + 13) + '" y="' + (oy + bd / 2) + '" fill="rgba(255,107,0,0.72)" text-anchor="middle" font-size="10" font-family="\'Courier New\',monospace" transform="rotate(90,' + (dX2 + 13) + ',' + (oy + bd / 2) + ')">' + fd + '\' — 0"</text>';
+  s += '<text x="' + (dX2 + 13) + '" y="' + (oy + bd / 2) + '" fill="rgba(255,107,0,0.72)" text-anchor="middle" font-size="10" font-family="monospace" transform="rotate(90,' + (dX2 + 13) + ',' + (oy + bd / 2) + ')">' + fd + ' ft</text>';
 
   var sbFt = Math.max(2, Math.round(fw / 5)), sbPx = f(sbFt), sbX = ox, sbY = oy - 18;
   s += '<line x1="' + sbX + '" y1="' + sbY + '" x2="' + (sbX + sbPx) + '" y2="' + sbY + '" stroke="rgba(255,107,0,0.55)" stroke-width="2"/>';
   s += '<line x1="' + sbX + '" y1="' + (sbY - 4) + '" x2="' + sbX + '" y2="' + (sbY + 4) + '" stroke="rgba(255,107,0,0.55)" stroke-width="1"/>';
   s += '<line x1="' + (sbX + sbPx) + '" y1="' + (sbY - 4) + '" x2="' + (sbX + sbPx) + '" y2="' + (sbY + 4) + '" stroke="rgba(255,107,0,0.55)" stroke-width="1"/>';
-  s += '<text x="' + (sbX + sbPx / 2) + '" y="' + (sbY - 7) + '" fill="rgba(255,107,0,0.6)" text-anchor="middle" font-size="8.5" font-family="\'Courier New\',monospace">= ' + sbFt + ' ft</text>';
+  s += '<text x="' + (sbX + sbPx / 2) + '" y="' + (sbY - 7) + '" fill="rgba(255,107,0,0.6)" text-anchor="middle" font-size="8.5" font-family="monospace">= ' + sbFt + ' ft</text>';
 
   var legY2 = SVG_H - LEGEND_H + 14;
   s += '<line x1="16" y1="' + (legY2 - 8) + '" x2="' + (SVG_W - 16) + '" y2="' + (legY2 - 8) + '" stroke="rgba(255,107,0,0.1)" stroke-width="1"/>';
