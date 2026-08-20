@@ -707,6 +707,7 @@ footer strong { color: rgba(255,107,0,.35); font-weight: 600; }
             <button class="tab-btn active" data-tab="concept" onclick="switchTab('concept')">&#128172; Concept</button>
             <button class="tab-btn" data-tab="orders" onclick="switchTab('orders')">&#128230; Orders</button>
             <button class="tab-btn" data-tab="summary" onclick="switchTab('summary')">&#128203; Summary</button>
+            <button class="tab-btn" data-tab="floorplan" onclick="switchTab('floorplan')">&#9783; Floor Plan</button>
           </div>
 
           <!-- Tab Content -->
@@ -731,6 +732,10 @@ footer strong { color: rgba(255,107,0,.35); font-weight: 600; }
                 &#8594;&nbsp; Shop the GES Store &nbsp;&#8594;
               </button>
               <p class="cta-hint">Head to GES Store to browse, select, and order your booth items</p>
+            </div>
+
+            <div class="tab-pane" id="tab-floorplan">
+              <div id="floorplan-svg" style="width:100%;max-width:600px;margin:0 auto"></div>
             </div>
 
           </div>
@@ -1000,6 +1005,312 @@ async function generate() {
   document.getElementById('rerender-bar').style.display = 'none';
 }
 
+// ─── 2D Floor Plan SVG Generator (detailed) ──────────────────────────────────
+function generateFloorPlanSVG(orderItems, fw, fd, boothType) {
+  fw = parseFloat(fw) || 20;
+  fd = parseFloat(fd) || 20;
+
+  var SVG_W = 620, SVG_H = 520;
+  var TITLE_H = 24, LEGEND_H = 68;
+  var ML = 56, MR = 46, MT = TITLE_H + 18, MB = LEGEND_H + 18;
+  var availW = SVG_W - ML - MR, availH = SVG_H - MT - MB;
+  var sc = Math.min(availW / fw, availH / fd);
+  var bw = fw * sc, bd = fd * sc;
+  var ox = ML + (availW - bw) / 2, oy = MT + (availH - bd) / 2;
+  var WT = Math.max(4, sc * 0.35);
+
+  var type = (boothType || '').toLowerCase();
+  var isIsland    = type.includes('island');
+  var isPeninsula = type.includes('peninsula');
+  var isCorner    = type.includes('corner');
+  var openTop   = isIsland;
+  var openLeft  = isIsland || isPeninsula;
+  var openRight = isIsland || isPeninsula || isCorner;
+
+  function f(v) { return v * sc; }
+
+  function classify(name, cat) {
+    var n = (name || '').toLowerCase(), c = (cat || '').toLowerCase();
+    if (/led.*(wall|screen|video)|video wall/.test(n)) return 'led_wall';
+    if (/hanging|overhead sign|suspended sign/.test(n)) return 'hanging_sign';
+    if (/backwall|back wall|backdrop|back panel/.test(n)) return 'backwall';
+    if (/reception|info counter|registration counter/.test(n)) return 'reception';
+    if (/monitor|screen|tv\b|display/.test(n) && c !== 'signage') return 'monitor';
+    if (/storage|closet|cabinet/.test(n)) return 'storage';
+    if (/sofa|couch|loveseat/.test(n)) return 'sofa';
+    if (/high.top|hi.top|cocktail table|bistro/.test(n)) return 'hightop';
+    if (/conference|meeting table|boardroom/.test(n)) return 'conf_table';
+    if (/chair|seating|stool/.test(n) && c === 'furniture') return 'chair';
+    if (/table|desk/.test(n) && c === 'furniture') return 'table';
+    if (/pedestal|kiosk|demo station|interactive/.test(n)) return 'pedestal';
+    if (/banner|sign|graphic panel/.test(n) || c === 'signage') return 'signage';
+    if (c === 'flooring') return 'flooring';
+    if (c === 'lighting') return 'lighting';
+    if (c === 'electrical') return 'electrical';
+    return 'generic';
+  }
+
+  var items = (orderItems || []).map(function(item) {
+    return { item: item, qty: Math.max(1, parseInt(item.qty) || 1), type: classify(item.name, item.category), name: item.name || '' };
+  });
+  function byType(t) { return items.filter(function(i) { return i.type === t; }); }
+
+  var defs = '<marker id="ah" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="rgba(255,107,0,0.3)"/></marker>';
+  var hasFlooring = byType('flooring').length > 0;
+  if (hasFlooring) defs += '<pattern id="hatch" patternUnits="userSpaceOnUse" width="14" height="14" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="14" stroke="rgba(255,255,255,0.03)" stroke-width="5"/></pattern>';
+
+  var s = '';
+
+  s += '<rect width="' + SVG_W + '" height="' + SVG_H + '" fill="#0a1520" rx="4"/>';
+  s += '<text x="' + (SVG_W / 2) + '" y="17" fill="rgba(255,107,0,0.58)" text-anchor="middle" font-size="9.5" font-family="\'Courier New\',monospace" letter-spacing="3" font-weight="700">2D FLOOR PLAN — TOP VIEW</text>';
+
+  s += '<rect x="' + ox + '" y="' + oy + '" width="' + bw + '" height="' + bd + '" fill="#0d1e30" rx="2"/>';
+  if (hasFlooring) s += '<rect x="' + ox + '" y="' + oy + '" width="' + bw + '" height="' + bd + '" fill="url(#hatch)"/>';
+
+  var gridFt = Math.max(2, Math.round(Math.max(fw, fd) / 8));
+  var gridPx = f(gridFt);
+  for (var gx = ox; gx <= ox + bw + 0.5; gx += gridPx) {
+    s += '<line x1="' + gx.toFixed(1) + '" y1="' + oy + '" x2="' + gx.toFixed(1) + '" y2="' + (oy + bd) + '" stroke="rgba(255,255,255,0.03)" stroke-width="0.5"/>';
+  }
+  for (var gy = oy; gy <= oy + bd + 0.5; gy += gridPx) {
+    s += '<line x1="' + ox + '" y1="' + gy.toFixed(1) + '" x2="' + (ox + bw) + '" y2="' + gy.toFixed(1) + '" stroke="rgba(255,255,255,0.03)" stroke-width="0.5"/>';
+  }
+
+  var zBackH = bd * 0.28, zFrontH = bd * 0.20;
+  s += '<rect x="' + ox + '" y="' + oy + '" width="' + bw + '" height="' + zBackH + '" fill="rgba(15,50,85,0.5)"/>';
+  s += '<rect x="' + ox + '" y="' + (oy + bd - zFrontH) + '" width="' + bw + '" height="' + zFrontH + '" fill="rgba(10,45,15,0.4)"/>';
+  s += '<text x="' + (ox + 7) + '" y="' + (oy + 10) + '" fill="rgba(80,140,200,0.35)" font-size="7" font-family="\'Courier New\',monospace" letter-spacing="1.5">BACK WALL ZONE</text>';
+  s += '<text x="' + (ox + 7) + '" y="' + (oy + bd - 5) + '" fill="rgba(60,160,60,0.35)" font-size="7" font-family="\'Courier New\',monospace" letter-spacing="1.5">ENTRANCE ZONE</text>';
+  s += '<line x1="' + (ox + 12) + '" y1="' + (oy + zBackH) + '" x2="' + (ox + bw - 12) + '" y2="' + (oy + zBackH) + '" stroke="rgba(255,107,0,0.08)" stroke-width="1" stroke-dasharray="5,5"/>';
+  s += '<line x1="' + (ox + 12) + '" y1="' + (oy + bd - zFrontH) + '" x2="' + (ox + bw - 12) + '" y2="' + (oy + bd - zFrontH) + '" stroke="rgba(255,107,0,0.08)" stroke-width="1" stroke-dasharray="5,5"/>';
+
+  byType('hanging_sign').forEach(function(ci) {
+    var hsW = Math.min(bw * 0.7, f(16)), hsH = Math.min(bd * 0.7, f(16));
+    var hx = ox + (bw - hsW) / 2, hy = oy + (bd - hsH) / 2;
+    s += '<rect x="' + hx + '" y="' + hy + '" width="' + hsW + '" height="' + hsH + '" fill="rgba(255,200,0,0.025)" stroke="rgba(255,200,0,0.35)" stroke-width="1.5" stroke-dasharray="9,5" rx="4"/>';
+    s += '<text x="' + (hx + hsW / 2) + '" y="' + (hy + 16) + '" fill="rgba(255,210,0,0.45)" text-anchor="middle" font-size="8" font-family="\'Courier New\',monospace" letter-spacing="1">OVERHEAD SIGN</text>';
+    s += '<text x="' + (hx + hsW / 2) + '" y="' + (hy + 28) + '" fill="rgba(255,210,0,0.3)" text-anchor="middle" font-size="7.5" font-family="system-ui,sans-serif">' + escHtml((ci.name || '').slice(0, 20)) + '</text>';
+  });
+
+  byType('backwall').forEach(function() {
+    s += '<rect x="' + ox + '" y="' + oy + '" width="' + bw + '" height="' + f(1.0) + '" fill="#12304e" stroke="rgba(60,140,220,0.45)" stroke-width="1"/>';
+    s += '<text x="' + (ox + bw / 2) + '" y="' + (oy + f(0.65)) + '" fill="rgba(100,180,240,0.55)" text-anchor="middle" font-size="8" font-family="\'Courier New\',monospace" letter-spacing="1">BACKWALL GRAPHIC</text>';
+  });
+
+  byType('led_wall').forEach(function() {
+    var lw = Math.min(bw * 0.65, f(14)), lh = f(0.5);
+    var lx = ox + (bw - lw) / 2;
+    s += '<rect x="' + lx + '" y="' + oy + '" width="' + lw + '" height="' + lh + '" fill="#080e28" stroke="rgba(50,100,255,0.9)" stroke-width="2"/>';
+    for (var sl = 1; sl < 4; sl++) {
+      s += '<line x1="' + lx + '" y1="' + (oy + lh * sl / 4) + '" x2="' + (lx + lw) + '" y2="' + (oy + lh * sl / 4) + '" stroke="rgba(50,100,255,0.18)" stroke-width="0.5"/>';
+    }
+    s += '<text x="' + (lx + lw / 2) + '" y="' + (oy + f(0.3)) + '" fill="rgba(90,150,255,0.88)" text-anchor="middle" font-size="8.5" font-family="\'Courier New\',monospace" letter-spacing="1">&#9632; LED VIDEO WALL &#9632;</text>';
+  });
+
+  byType('monitor').forEach(function(ci, idx) {
+    var mw = f(2.5), mh = f(0.4);
+    var mx = idx % 2 === 0 ? ox + f(1) : ox + bw - f(1) - mw;
+    var my = oy + f(0.2);
+    s += '<rect x="' + mx + '" y="' + my + '" width="' + mw + '" height="' + mh + '" fill="#090f24" stroke="rgba(80,130,255,0.7)" stroke-width="1.5"/>';
+    s += '<rect x="' + (mx + mw * 0.06) + '" y="' + (my + mh * 0.1) + '" width="' + (mw * 0.88) + '" height="' + (mh * 0.8) + '" fill="rgba(50,90,200,0.15)"/>';
+    s += '<text x="' + (mx + mw / 2) + '" y="' + (my + mh * 0.6) + '" fill="rgba(100,155,255,0.7)" text-anchor="middle" dominant-baseline="middle" font-size="7" font-family="system-ui,sans-serif">Monitor</text>';
+  });
+
+  byType('lighting').forEach(function(ci) {
+    var count = Math.min(ci.qty * 2, 8);
+    for (var li = 0; li < count; li++) {
+      var lx2 = ox + bw * (0.1 + li * 0.8 / Math.max(count - 1, 1));
+      var ly2 = oy + f(0.42);
+      s += '<circle cx="' + lx2 + '" cy="' + ly2 + '" r="' + f(0.3) + '" fill="rgba(255,220,100,0.08)" stroke="rgba(255,220,100,0.55)" stroke-width="1"/>';
+      s += '<line x1="' + (lx2 - f(0.48)) + '" y1="' + ly2 + '" x2="' + (lx2 + f(0.48)) + '" y2="' + ly2 + '" stroke="rgba(255,220,100,0.38)" stroke-width="0.7"/>';
+      s += '<line x1="' + lx2 + '" y1="' + (ly2 - f(0.48)) + '" x2="' + lx2 + '" y2="' + (ly2 + f(0.48)) + '" stroke="rgba(255,220,100,0.38)" stroke-width="0.7"/>';
+    }
+  });
+
+  byType('storage').forEach(function(ci, idx) {
+    var sw = Math.min(f(4), bw * 0.22), sh = Math.min(f(4), bd * 0.28);
+    var sx = idx % 2 === 0 ? ox : ox + bw - sw;
+    s += '<rect x="' + sx + '" y="' + oy + '" width="' + sw + '" height="' + sh + '" fill="#0c1018" stroke="rgba(90,85,160,0.65)" stroke-width="1.5"/>';
+    s += '<line x1="' + sx + '" y1="' + oy + '" x2="' + (sx + sw) + '" y2="' + (oy + sh) + '" stroke="rgba(90,85,160,0.2)" stroke-width="1"/>';
+    s += '<line x1="' + (sx + sw) + '" y1="' + oy + '" x2="' + sx + '" y2="' + (oy + sh) + '" stroke="rgba(90,85,160,0.2)" stroke-width="1"/>';
+    var dArcR = Math.min(sw, sh) * 0.6, sweep = idx % 2 === 0 ? 0 : 1;
+    var dArcX = idx % 2 === 0 ? sx + sw : sx;
+    var dEndX = dArcX + (idx % 2 === 0 ? -dArcR : dArcR);
+    s += '<path d="M ' + dArcX + ' ' + (oy + sh) + ' A ' + dArcR + ' ' + dArcR + ' 0 0 ' + sweep + ' ' + dEndX + ' ' + (oy + sh - dArcR) + '" fill="none" stroke="rgba(90,85,160,0.45)" stroke-width="1" stroke-dasharray="3,2"/>';
+    s += '<text x="' + (sx + sw / 2) + '" y="' + (oy + sh / 2 + 4) + '" fill="rgba(120,115,200,0.75)" text-anchor="middle" dominant-baseline="middle" font-size="8.5" font-family="system-ui,sans-serif">Storage</text>';
+  });
+
+  byType('signage').forEach(function(ci, idx) {
+    var sgW = f(0.35), sgH = Math.min(f(4), bd * 0.28);
+    var sx2 = idx % 2 === 0 ? ox + f(0.1) : ox + bw - sgW - f(0.1);
+    var sy2 = oy + zBackH + (bd - zBackH - zFrontH) * 0.1 + idx * f(4.5);
+    if (sy2 + sgH > oy + bd - zFrontH) return;
+    s += '<rect x="' + sx2 + '" y="' + sy2 + '" width="' + sgW + '" height="' + sgH + '" fill="#100820" stroke="rgba(140,80,220,0.6)" stroke-width="1.5"/>';
+    s += '<text x="' + (sx2 + sgW / 2) + '" y="' + (sy2 + sgH / 2) + '" fill="rgba(160,100,240,0.65)" text-anchor="middle" dominant-baseline="middle" font-size="7.5" font-family="system-ui,sans-serif" transform="rotate(-90,' + (sx2 + sgW / 2) + ',' + (sy2 + sgH / 2) + ')">Signage</text>';
+  });
+
+  byType('conf_table').forEach(function(ci, idx) {
+    var ctW = Math.min(bw * 0.42, f(8)), ctH = Math.min(bd * 0.22, f(4));
+    var ctx = ox + bw * 0.53, cty = oy + bd * 0.32 + idx * f(5);
+    if (cty + ctH > oy + bd - zFrontH - f(0.5)) cty = oy + zBackH + f(1);
+    var cR = f(0.7);
+    s += '<rect x="' + ctx + '" y="' + cty + '" width="' + ctW + '" height="' + ctH + '" fill="#18120a" stroke="rgba(200,150,50,0.75)" stroke-width="1.5" rx="' + f(0.4) + '"/>';
+    s += '<line x1="' + (ctx + f(0.5)) + '" y1="' + (cty + ctH / 2) + '" x2="' + (ctx + ctW - f(0.5)) + '" y2="' + (cty + ctH / 2) + '" stroke="rgba(200,150,50,0.18)" stroke-width="0.5"/>';
+    s += '<text x="' + (ctx + ctW / 2) + '" y="' + (cty + ctH / 2 + 4) + '" fill="rgba(220,170,70,0.82)" text-anchor="middle" dominant-baseline="middle" font-size="8.5" font-family="system-ui,sans-serif">Conf. Table</text>';
+    var nc = Math.max(1, Math.floor(ctW / f(2)));
+    for (var cj = 0; cj < nc; cj++) {
+      var cx2 = ctx + f(1) + cj * (ctW - f(2)) / Math.max(nc - 1, 1);
+      s += '<circle cx="' + cx2 + '" cy="' + (cty - cR - 2) + '" r="' + cR + '" fill="#1e1408" stroke="rgba(200,150,50,0.5)" stroke-width="1"/>';
+      s += '<path d="M ' + (cx2 - cR * 0.7) + ' ' + (cty - cR - 2) + ' A ' + (cR * 0.85) + ' ' + (cR * 0.85) + ' 0 0 1 ' + (cx2 + cR * 0.7) + ' ' + (cty - cR - 2) + '" fill="none" stroke="rgba(200,150,50,0.38)" stroke-width="1"/>';
+      s += '<circle cx="' + cx2 + '" cy="' + (cty + ctH + cR + 2) + '" r="' + cR + '" fill="#1e1408" stroke="rgba(200,150,50,0.5)" stroke-width="1"/>';
+      s += '<path d="M ' + (cx2 - cR * 0.7) + ' ' + (cty + ctH + cR + 2) + ' A ' + (cR * 0.85) + ' ' + (cR * 0.85) + ' 0 0 0 ' + (cx2 + cR * 0.7) + ' ' + (cty + ctH + cR + 2) + '" fill="none" stroke="rgba(200,150,50,0.38)" stroke-width="1"/>';
+    }
+    s += '<circle cx="' + (ctx - cR - 2) + '" cy="' + (cty + ctH / 2) + '" r="' + cR + '" fill="#1e1408" stroke="rgba(200,150,50,0.5)" stroke-width="1"/>';
+    s += '<circle cx="' + (ctx + ctW + cR + 2) + '" cy="' + (cty + ctH / 2) + '" r="' + cR + '" fill="#1e1408" stroke="rgba(200,150,50,0.5)" stroke-width="1"/>';
+  });
+
+  byType('sofa').forEach(function(ci, idx) {
+    var sw2 = Math.min(bw * 0.38, f(8)), sh2 = f(2.5);
+    var sx3 = ox + bw * 0.55, sy3 = oy + bd * 0.42 + idx * f(3.2);
+    if (sy3 + sh2 > oy + bd - zFrontH - f(0.5)) sy3 = oy + zBackH + f(1);
+    s += '<rect x="' + sx3 + '" y="' + sy3 + '" width="' + sw2 + '" height="' + sh2 + '" fill="#100e1c" stroke="rgba(120,100,210,0.68)" stroke-width="1.5" rx="' + f(0.4) + '"/>';
+    s += '<rect x="' + sx3 + '" y="' + sy3 + '" width="' + f(0.42) + '" height="' + sh2 + '" fill="rgba(120,100,210,0.16)" rx="' + f(0.22) + '"/>';
+    s += '<rect x="' + (sx3 + sw2 - f(0.42)) + '" y="' + sy3 + '" width="' + f(0.42) + '" height="' + sh2 + '" fill="rgba(120,100,210,0.16)" rx="' + f(0.22) + '"/>';
+    var cushN = Math.max(2, Math.round(sw2 / f(2.5)));
+    for (var cu = 1; cu < cushN; cu++) {
+      var cx3 = sx3 + f(0.42) + cu * (sw2 - f(0.84)) / cushN;
+      s += '<line x1="' + cx3 + '" y1="' + (sy3 + f(0.2)) + '" x2="' + cx3 + '" y2="' + (sy3 + sh2 - f(0.2)) + '" stroke="rgba(120,100,210,0.28)" stroke-width="1"/>';
+    }
+    s += '<text x="' + (sx3 + sw2 / 2) + '" y="' + (sy3 + sh2 / 2 + 4) + '" fill="rgba(150,130,240,0.72)" text-anchor="middle" dominant-baseline="middle" font-size="8.5" font-family="system-ui,sans-serif">Sofa</text>';
+  });
+
+  var htPos = [
+    [ox + bw * 0.14, oy + bd * 0.52], [ox + bw * 0.32, oy + bd * 0.52],
+    [ox + bw * 0.14, oy + bd * 0.68], [ox + bw * 0.32, oy + bd * 0.68]
+  ];
+  byType('hightop').forEach(function(ci, idx) {
+    var tR = f(1.35), pos = htPos[idx % htPos.length];
+    var cx4 = pos[0], cy4 = pos[1];
+    s += '<circle cx="' + cx4 + '" cy="' + cy4 + '" r="' + tR + '" fill="#161008" stroke="rgba(200,155,50,0.7)" stroke-width="1.5"/>';
+    s += '<circle cx="' + cx4 + '" cy="' + cy4 + '" r="' + (tR * 0.52) + '" fill="none" stroke="rgba(200,155,50,0.2)" stroke-width="0.7"/>';
+    var stR = f(0.44);
+    for (var st = 0; st < 3; st++) {
+      var ang = (st * 120 - 90) * Math.PI / 180;
+      s += '<circle cx="' + (cx4 + (tR + stR + 3) * Math.cos(ang)) + '" cy="' + (cy4 + (tR + stR + 3) * Math.sin(ang)) + '" r="' + stR + '" fill="#161008" stroke="rgba(200,155,50,0.4)" stroke-width="1"/>';
+    }
+    s += '<text x="' + cx4 + '" y="' + cy4 + '" fill="rgba(220,175,70,0.72)" text-anchor="middle" dominant-baseline="middle" font-size="7.5" font-family="system-ui,sans-serif">Hi-Top</text>';
+  });
+
+  byType('table').forEach(function(ci, idx) {
+    var tw = Math.min(bw * 0.32, f(5)), th = f(2.5);
+    var tx = ox + bw * 0.1 + idx * f(5.5), ty = oy + bd * 0.44;
+    if (tx + tw > ox + bw * 0.5) return;
+    s += '<rect x="' + tx + '" y="' + ty + '" width="' + tw + '" height="' + th + '" fill="#151008" stroke="rgba(200,155,50,0.62)" stroke-width="1.5"/>';
+    s += '<text x="' + (tx + tw / 2) + '" y="' + (ty + th / 2 + 4) + '" fill="rgba(220,175,70,0.72)" text-anchor="middle" dominant-baseline="middle" font-size="8.5" font-family="system-ui,sans-serif">' + escHtml((ci.name || '').slice(0, 12)) + '</text>';
+    var cR2 = f(0.65), nc2 = Math.max(1, Math.floor(tw / f(2)));
+    for (var cj2 = 0; cj2 < nc2; cj2++) {
+      var cx5 = tx + f(1) + cj2 * (tw - f(2)) / Math.max(nc2 - 1, 1);
+      s += '<circle cx="' + cx5 + '" cy="' + (ty - cR2 - 2) + '" r="' + cR2 + '" fill="#1e1408" stroke="rgba(200,155,50,0.45)" stroke-width="1"/>';
+      s += '<circle cx="' + cx5 + '" cy="' + (ty + th + cR2 + 2) + '" r="' + cR2 + '" fill="#1e1408" stroke="rgba(200,155,50,0.45)" stroke-width="1"/>';
+    }
+  });
+
+  var pedPos = [
+    [ox + bw * 0.18, oy + bd * 0.28], [ox + bw * 0.42, oy + bd * 0.28],
+    [ox + bw * 0.66, oy + bd * 0.28], [ox + bw * 0.30, oy + bd * 0.48],
+    [ox + bw * 0.54, oy + bd * 0.48]
+  ];
+  byType('pedestal').forEach(function(ci, idx) {
+    var pw = f(2), ph = f(2), pos = pedPos[idx % pedPos.length];
+    var px2 = pos[0] - pw / 2, py2 = pos[1] - ph / 2;
+    s += '<rect x="' + px2 + '" y="' + py2 + '" width="' + pw + '" height="' + ph + '" fill="#12100a" stroke="rgba(200,185,60,0.65)" stroke-width="1.5"/>';
+    s += '<rect x="' + (px2 + pw * 0.15) + '" y="' + (py2 + ph * 0.15) + '" width="' + (pw * 0.7) + '" height="' + (ph * 0.7) + '" fill="rgba(200,185,60,0.06)" stroke="rgba(200,185,60,0.22)" stroke-width="0.5"/>';
+    s += '<text x="' + (px2 + pw / 2) + '" y="' + (py2 + ph / 2 + 4) + '" fill="rgba(220,205,80,0.72)" text-anchor="middle" dominant-baseline="middle" font-size="7.5" font-family="system-ui,sans-serif">Display</text>';
+  });
+
+  byType('reception').forEach(function() {
+    var rw = Math.min(bw * 0.42, f(8)), rh = f(2.2);
+    var rx2 = ox + (bw - rw) / 2, ry2 = oy + bd - zFrontH + f(0.5);
+    s += '<rect x="' + rx2 + '" y="' + ry2 + '" width="' + rw + '" height="' + rh + '" fill="#0e1e0c" stroke="rgba(55,175,75,0.78)" stroke-width="2"/>';
+    s += '<rect x="' + rx2 + '" y="' + ry2 + '" width="' + rw + '" height="' + f(0.32) + '" fill="rgba(55,175,75,0.1)"/>';
+    s += '<rect x="' + rx2 + '" y="' + (ry2 + rh - f(0.28)) + '" width="' + rw + '" height="' + f(0.28) + '" fill="rgba(55,175,75,0.15)"/>';
+    s += '<line x1="' + (rx2 + f(0.4)) + '" y1="' + (ry2 + rh * 0.4) + '" x2="' + (rx2 + rw - f(0.4)) + '" y2="' + (ry2 + rh * 0.4) + '" stroke="rgba(55,175,75,0.2)" stroke-width="0.5"/>';
+    s += '<text x="' + (rx2 + rw / 2) + '" y="' + (ry2 + rh / 2 + 4) + '" fill="rgba(75,210,95,0.88)" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="system-ui,sans-serif" font-weight="600">Reception Counter</text>';
+  });
+
+  byType('electrical').forEach(function(ci, idx) {
+    var ex = ox + bw * (0.12 + idx * 0.28), ey = oy + bd - f(0.65);
+    s += '<rect x="' + ex + '" y="' + ey + '" width="' + f(0.55) + '" height="' + f(0.55) + '" fill="#0a1e0a" stroke="rgba(50,185,50,0.62)" stroke-width="1"/>';
+    s += '<text x="' + (ex + f(0.27)) + '" y="' + (ey - 4) + '" fill="rgba(50,185,50,0.42)" text-anchor="middle" font-size="7" font-family="\'Courier New\',monospace">&#9889;</text>';
+  });
+
+  function drawWall(x1, y1, x2, y2, open) {
+    if (open) {
+      return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="rgba(255,107,0,0.5)" stroke-width="2.5" stroke-dasharray="10,6"/>';
+    }
+    var isV = Math.abs(x1 - x2) < 1;
+    if (isV) {
+      var minY2 = Math.min(y1, y2), maxY2 = Math.max(y1, y2);
+      return '<rect x="' + (x1 - WT / 2) + '" y="' + minY2 + '" width="' + WT + '" height="' + (maxY2 - minY2) + '" fill="rgba(70,140,210,0.55)" stroke="rgba(100,180,240,0.88)" stroke-width="0.5"/>';
+    }
+    var minX2 = Math.min(x1, x2), maxX2 = Math.max(x1, x2);
+    return '<rect x="' + minX2 + '" y="' + (y1 - WT / 2) + '" width="' + (maxX2 - minX2) + '" height="' + WT + '" fill="rgba(70,140,210,0.55)" stroke="rgba(100,180,240,0.88)" stroke-width="0.5"/>';
+  }
+  s += drawWall(ox, oy, ox + bw, oy, openTop);
+  s += drawWall(ox + bw, oy, ox + bw, oy + bd, openRight);
+  s += drawWall(ox, oy + bd, ox + bw, oy + bd, true);
+  s += drawWall(ox, oy, ox, oy + bd, openLeft);
+  [[ox, oy], [ox + bw, oy], [ox + bw, oy + bd], [ox, oy + bd]].forEach(function(pt) {
+    s += '<rect x="' + (pt[0] - WT / 2) + '" y="' + (pt[1] - WT / 2) + '" width="' + WT + '" height="' + WT + '" fill="rgba(100,180,240,0.75)"/>';
+  });
+
+  s += '<line x1="' + (ox + bw / 2) + '" y1="' + (oy + bd * 0.95) + '" x2="' + (ox + bw / 2) + '" y2="' + (oy + bd * 0.75) + '" stroke="rgba(255,107,0,0.22)" stroke-width="1.5" marker-end="url(#ah)"/>';
+  if (isIsland || isPeninsula || isCorner) {
+    s += '<line x1="' + (ox + bw * 0.96) + '" y1="' + (oy + bd / 2) + '" x2="' + (ox + bw * 0.82) + '" y2="' + (oy + bd / 2) + '" stroke="rgba(255,107,0,0.22)" stroke-width="1.5" marker-end="url(#ah)"/>';
+  }
+
+  s += '<text x="' + (ox + bw / 2) + '" y="' + (oy + bd + 20) + '" fill="rgba(255,107,0,0.42)" text-anchor="middle" font-size="8.5" font-family="\'Courier New\',monospace" letter-spacing="2">&#9660; AISLE &#9660;</text>';
+
+  var dY2 = oy + bd + 34, dX2 = ox + bw + 30;
+  s += '<line x1="' + ox + '" y1="' + dY2 + '" x2="' + (ox + bw) + '" y2="' + dY2 + '" stroke="rgba(255,107,0,0.55)" stroke-width="1"/>';
+  s += '<line x1="' + ox + '" y1="' + (dY2 - 4) + '" x2="' + ox + '" y2="' + (dY2 + 4) + '" stroke="rgba(255,107,0,0.55)" stroke-width="1"/>';
+  s += '<line x1="' + (ox + bw) + '" y1="' + (dY2 - 4) + '" x2="' + (ox + bw) + '" y2="' + (dY2 + 4) + '" stroke="rgba(255,107,0,0.55)" stroke-width="1"/>';
+  s += '<text x="' + (ox + bw / 2) + '" y="' + (dY2 + 13) + '" fill="rgba(255,107,0,0.72)" text-anchor="middle" font-size="10" font-family="\'Courier New\',monospace">' + fw + '\' — 0"</text>';
+  s += '<line x1="' + dX2 + '" y1="' + oy + '" x2="' + dX2 + '" y2="' + (oy + bd) + '" stroke="rgba(255,107,0,0.55)" stroke-width="1"/>';
+  s += '<line x1="' + (dX2 - 4) + '" y1="' + oy + '" x2="' + (dX2 + 4) + '" y2="' + oy + '" stroke="rgba(255,107,0,0.55)" stroke-width="1"/>';
+  s += '<line x1="' + (dX2 - 4) + '" y1="' + (oy + bd) + '" x2="' + (dX2 + 4) + '" y2="' + (oy + bd) + '" stroke="rgba(255,107,0,0.55)" stroke-width="1"/>';
+  s += '<text x="' + (dX2 + 13) + '" y="' + (oy + bd / 2) + '" fill="rgba(255,107,0,0.72)" text-anchor="middle" font-size="10" font-family="\'Courier New\',monospace" transform="rotate(90,' + (dX2 + 13) + ',' + (oy + bd / 2) + ')">' + fd + '\' — 0"</text>';
+
+  var sbFt = Math.max(2, Math.round(fw / 5)), sbPx = f(sbFt), sbX = ox, sbY = oy - 18;
+  s += '<line x1="' + sbX + '" y1="' + sbY + '" x2="' + (sbX + sbPx) + '" y2="' + sbY + '" stroke="rgba(255,107,0,0.55)" stroke-width="2"/>';
+  s += '<line x1="' + sbX + '" y1="' + (sbY - 4) + '" x2="' + sbX + '" y2="' + (sbY + 4) + '" stroke="rgba(255,107,0,0.55)" stroke-width="1"/>';
+  s += '<line x1="' + (sbX + sbPx) + '" y1="' + (sbY - 4) + '" x2="' + (sbX + sbPx) + '" y2="' + (sbY + 4) + '" stroke="rgba(255,107,0,0.55)" stroke-width="1"/>';
+  s += '<text x="' + (sbX + sbPx / 2) + '" y="' + (sbY - 7) + '" fill="rgba(255,107,0,0.6)" text-anchor="middle" font-size="8.5" font-family="\'Courier New\',monospace">= ' + sbFt + ' ft</text>';
+
+  var legY2 = SVG_H - LEGEND_H + 14;
+  s += '<line x1="16" y1="' + (legY2 - 8) + '" x2="' + (SVG_W - 16) + '" y2="' + (legY2 - 8) + '" stroke="rgba(255,107,0,0.1)" stroke-width="1"/>';
+  [
+    { color: '#3a78c4', label: 'AV / Screens' }, { color: '#3aaa4a', label: 'Reception' },
+    { color: '#c07820', label: 'Furniture' },    { color: '#8060c0', label: 'Lounge / Sofa' },
+    { color: '#6060a0', label: 'Storage' },      { color: '#a0a030', label: 'Kiosk / Pedestal' }
+  ].forEach(function(li, i) {
+    var lx3 = 16 + i * (SVG_W - 32) / 6;
+    s += '<rect x="' + lx3 + '" y="' + legY2 + '" width="9" height="9" fill="' + li.color + '" opacity="0.65" rx="1"/>';
+    s += '<text x="' + (lx3 + 13) + '" y="' + (legY2 + 8) + '" fill="rgba(150,195,230,0.52)" font-size="8.5" font-family="system-ui,sans-serif">' + li.label + '</text>';
+  });
+  var wkY = legY2 + 18;
+  s += '<line x1="16" y1="' + (wkY + 5) + '" x2="38" y2="' + (wkY + 5) + '" stroke="rgba(100,180,240,0.82)" stroke-width="3"/>';
+  s += '<text x="42" y="' + (wkY + 9) + '" fill="rgba(150,195,230,0.5)" font-size="8.5" font-family="system-ui,sans-serif">Closed wall</text>';
+  s += '<line x1="140" y1="' + (wkY + 5) + '" x2="162" y2="' + (wkY + 5) + '" stroke="rgba(255,107,0,0.5)" stroke-width="2.5" stroke-dasharray="8,5"/>';
+  s += '<text x="166" y="' + (wkY + 9) + '" fill="rgba(150,195,230,0.5)" font-size="8.5" font-family="system-ui,sans-serif">Open / Aisle</text>';
+  s += '<line x1="270" y1="' + (wkY + 5) + '" x2="292" y2="' + (wkY + 5) + '" stroke="rgba(255,200,0,0.45)" stroke-width="1.5" stroke-dasharray="7,4"/>';
+  s += '<text x="296" y="' + (wkY + 9) + '" fill="rgba(150,195,230,0.5)" font-size="8.5" font-family="system-ui,sans-serif">Overhead / Ceiling</text>';
+  s += '<circle cx="430" cy="' + (wkY + 5) + '" r="5" fill="rgba(255,220,100,0.08)" stroke="rgba(255,220,100,0.55)" stroke-width="1"/>';
+  s += '<text x="440" y="' + (wkY + 9) + '" fill="rgba(150,195,230,0.5)" font-size="8.5" font-family="system-ui,sans-serif">Light fixture</text>';
+
+  return '<svg viewBox="0 0 ' + SVG_W + ' ' + SVG_H + '" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block;border-radius:4px"><defs>' + defs + '</defs>' + s + '</svg>';
+}
+
 // ─── Render Concept ───────────────────────────────────────────────────────────
 function renderConcept(r, showName, w, d, boothType, isRefinement) {
   document.getElementById('empty-state').style.display  = 'none';
@@ -1053,6 +1364,10 @@ function renderConcept(r, showName, w, d, boothType, isRefinement) {
   } else {
     if (r.image_prompt) imagePrompt = r.image_prompt;
   }
+
+  // Render 2D floor plan
+  var fpEl = document.getElementById('floorplan-svg');
+  if (fpEl) fpEl.innerHTML = generateFloorPlanSVG(r.order_items, w, d, boothType);
 }
 
 function escHtml(s) {
