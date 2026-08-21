@@ -24,12 +24,11 @@ const PORT = process.env.PORT || 3000;
 const APP_PASSWORD = process.env.APP_PASSWORD;
 if (!APP_PASSWORD) { console.error('FATAL: APP_PASSWORD env var is not set'); process.exit(1); }
 
-// ─── Session store (in-memory, token → expiry ms) ──────────────────────────
-const sessions = new Map();
-function createSession() {
-  const token = require('crypto').randomBytes(32).toString('hex');
-  sessions.set(token, Date.now() + 86400_000);
-  return token;
+// ─── Stateless auth (HMAC-signed cookie — works across all instances) ────────
+const crypto = require('crypto');
+function makeToken() {
+  const sig = crypto.createHmac('sha256', APP_PASSWORD).update('ges-auth').digest('hex');
+  return sig;
 }
 function parseCookies(req) {
   const list = {};
@@ -41,8 +40,7 @@ function parseCookies(req) {
 }
 function isAuthenticated(req) {
   const token = parseCookies(req).ges_session;
-  const expiry = sessions.get(token);
-  return expiry && expiry > Date.now();
+  return token === makeToken();
 }
 
 // ─── Rate limiter — max 20 API requests per IP per minute ──────────────────
@@ -1782,7 +1780,7 @@ const server = http.createServer(async (req, res) => {
   // ── Login ────────────────────────────────────────────────────────────────────
   if (req.url === '/api/login') {
     if (body.password === APP_PASSWORD) {
-      const token = createSession();
+      const token = makeToken();
       res.writeHead(200, {
         'Content-Type': 'application/json',
         'Set-Cookie': 'ges_session=' + token + '; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=86400'
